@@ -29,10 +29,6 @@ function notFound() {
 	return Response.json({ status: 'error', value: 'Not Found' }, { status: 404 });
 }
 
-const stripPreamble = (text: string) => {
-	return text.replace(/^\)\]\}\'\,/, '');
-};
-
 const getPathsFromUrl = (url: string) => {
 	return new URL(url).pathname.substring(1).split('/');
 };
@@ -69,6 +65,10 @@ const stores = {
 				},
 			});
 			const text = await response.text();
+
+			const stripPreamble = (text: string) => {
+				return text.replace(/^\)\]\}\'\,/, '');
+			};
 			const json = JSON.parse(stripPreamble(text));
 
 			switch (type) {
@@ -95,7 +95,7 @@ const stores = {
 				},
 			});
 			const text = await response.text();
-			const json = JSON.parse(stripPreamble(text));
+			const json = JSON.parse(text);
 
 			switch (type) {
 				case 'raw':
@@ -128,11 +128,30 @@ const handlers = {
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		try {
-			const [version] = getPathsFromUrl(request.url);
+			const cacheUrl = new URL(request.url);
 
-			if (version !== 'v1') return notFound();
+			const cacheKey = new Request(cacheUrl.toString(), request);
+			const cache = caches.default;
 
-			return await handlers.fetch(request, env, ctx);
+			let response = await cache.match(cacheKey);
+			if (!response) {
+				console.log(`Response for request url: ${request.url} not present in cache. Fetching and caching request.`);
+
+				const [version] = getPathsFromUrl(request.url);
+
+				if (version !== 'v1') return notFound();
+
+				response = await handlers.fetch(request, env, ctx);
+
+				response = new Response(response.body, response);
+
+				response.headers.set('Cache-Control', 'public, max-age=300');
+
+				ctx.waitUntil(cache.put(cacheKey, response.clone()));
+			} else {
+				console.log(`Cache hit for request url: ${request.url}`);
+			}
+			return response;
 		} catch (e) {
 			const error = e as Error;
 			return Response.json({ message: error.message }, { status: 500 });
