@@ -50,6 +50,8 @@ const stores = {
 				return whaleStore();
 			case 'edge-addons':
 				return edgeAddons();
+			case 'web-store':
+				return webStore();
 			default:
 				return notFound();
 		}
@@ -100,6 +102,48 @@ const stores = {
 			switch (type) {
 				case 'raw':
 					return Response.json(json);
+				case 'version':
+					if (new URL(request.url).searchParams.get('format') === 'shields-io') {
+						return Response.json(formatShieldsIo(json));
+					}
+					return Response.json({ version: json.version });
+				default:
+					return notFound();
+			}
+		}
+
+		async function webStore() {
+			const [id, type] = paths;
+
+			let maxRedirects = 5;
+			let url = `https://chromewebstore.google.com/detail/${id}`;
+			let response;
+			do {
+				response = await fetch(url, {
+					headers: {
+						Accept: 'application/json, text/plain, */*',
+						Referer: `https://chromewebstore.google.com/`,
+						'User-Agent':
+							'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36',
+					},
+					// UTF-8 encoding issue
+					redirect: 'manual',
+				});
+				const location = response.headers.get('location');
+
+				if (--maxRedirects <= 0 || !location) break;
+
+				url = new URL(location).toString();
+			} while (response.status >= 300 && response.status < 400);
+
+			const html = await response.text();
+
+			const found = html.match(/<div class="pDlpAd">([^<]+)<\/div>/)?.[1] ?? '';
+			if (!found) return notFound();
+
+			const json = { version: found.trim() };
+
+			switch (type) {
 				case 'version':
 					if (new URL(request.url).searchParams.get('format') === 'shields-io') {
 						return Response.json(formatShieldsIo(json));
