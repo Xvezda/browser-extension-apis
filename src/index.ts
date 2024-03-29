@@ -73,14 +73,20 @@ const stores = {
 			};
 			const json = JSON.parse(stripPreamble(text));
 
+			const version = json?.manifest?.version_name
+				?? json?.manifest?.version
+				?? json?.version;
+
+			if (!version) return notFound();
+
 			switch (type) {
 				case 'raw':
 					return Response.json(json);
 				case 'version':
 					if (new URL(request.url).searchParams.get('format') === 'shields-io') {
-						return Response.json(formatShieldsIo(json));
+						return Response.json(formatShieldsIo({ version }));
 					}
-					return Response.json({ version: json.version });
+					return Response.json({ version });
 				default:
 					return notFound();
 			}
