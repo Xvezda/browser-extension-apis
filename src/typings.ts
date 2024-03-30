@@ -1,3 +1,5 @@
+import type { ExtensionId } from './schemas';
+
 export interface Env {
 	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
 	// MY_KV_NAMESPACE: KVNamespace;
@@ -26,6 +28,6 @@ export type ApiResponse<V> = {
 };
 
 export interface StoreParameters {
-	id: string;
-	type: string;
+	id: ExtensionId;
+	field: string;
 }

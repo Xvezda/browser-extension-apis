@@ -1,8 +1,9 @@
 import type { Env, StoreParameters } from './typings';
-import { NotFound } from './errors';
+import { NotFound, BadRequest } from './errors';
 import { getPathsFromUrl } from './utils';
+import { ExtensionIdSchema, safeParse } from './schemas';
 
-export async function whaleStore({ id, type }: StoreParameters) {
+export async function whaleStore({ id, field }: StoreParameters) {
 	const response = await fetch(`https://store.whale.naver.com/ajax/extensions/${id}`, {
 		headers: {
 			Accept: 'application/json, text/plain, */*',
@@ -22,7 +23,7 @@ export async function whaleStore({ id, type }: StoreParameters) {
 
 	if (!version) throw new NotFound();
 
-	switch (type) {
+	switch (field) {
 		case 'raw':
 			return json;
 		case 'version':
@@ -32,7 +33,7 @@ export async function whaleStore({ id, type }: StoreParameters) {
 	}
 }
 
-export async function edgeAddons({ id, type }: StoreParameters) {
+export async function edgeAddons({ id, field }: StoreParameters) {
 	const response = await fetch(`https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/${id}`, {
 		headers: {
 			Accept: 'application/json, text/plain, */*',
@@ -43,7 +44,7 @@ export async function edgeAddons({ id, type }: StoreParameters) {
 	const text = await response.text();
 	const json = JSON.parse(text);
 
-	switch (type) {
+	switch (field) {
 		case 'raw':
 			return json;
 		case 'version':
@@ -53,7 +54,7 @@ export async function edgeAddons({ id, type }: StoreParameters) {
 	}
 }
 
-export async function webStore({ id, type }: StoreParameters) {
+export async function webStore({ id, field }: StoreParameters) {
 	let maxRedirects = 5;
 	let url = `https://chromewebstore.google.com/detail/${id}`;
 	let response;
@@ -76,7 +77,7 @@ export async function webStore({ id, type }: StoreParameters) {
 
 	const html = await response.text();
 
-	switch (type) {
+	switch (field) {
 		case 'version':
 			const found = html.match(/<div class="pDlpAd">([^<]+)<\/div>/)?.[1] ?? '';
 			if (!found) {
@@ -101,17 +102,17 @@ export async function webStore({ id, type }: StoreParameters) {
 	}
 }
 
-export async function handleStore(target: 'whale-store' | 'edge-addons' | 'web-store' | string, { id, type }: StoreParameters) {
+export async function handleStore(target: 'whale-store' | 'edge-addons' | 'web-store' | string, { id, field }: StoreParameters) {
 	let result;
 	switch (target) {
 		case 'whale-store':
-			result = await whaleStore({ id, type });
+			result = await whaleStore({ id, field });
 			break;
 		case 'edge-addons':
-			result = await edgeAddons({ id, type });
+			result = await edgeAddons({ id, field });
 			break;
 		case 'web-store':
-			result = await webStore({ id, type });
+			result = await webStore({ id, field });
 			break;
 		default:
 			throw new NotFound();
@@ -123,8 +124,12 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		const [_version, _api, target, ...paths] = getPathsFromUrl(request.url);
 
-		const [id, type] = paths;
+		const [rawId, field] = paths;
 
-		return await handleStore(target, { id, type });
+		const idResult = safeParse(ExtensionIdSchema, rawId);
+		if (idResult.success) {
+			return await handleStore(target, { id: idResult.output, field });
+		}
+		throw new BadRequest(idResult.issues[0].message);
 	},
 };
