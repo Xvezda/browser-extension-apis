@@ -11,6 +11,11 @@ export async function whaleStore({ id, field }: StoreParameters) {
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36',
 			Referer: `https://store.whale.naver.com/detail/${id}`,
 		},
+		cf: {
+			cacheTtlByStatus: {
+				'200': 300,
+			},
+		},
 	});
 	const text = await response.text();
 
@@ -44,6 +49,11 @@ export async function edgeAddons({ id, field }: StoreParameters) {
 			Referer: `https://microsoftedge.microsoft.com/addons/detail/${id}`,
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36',
 		},
+		cf: {
+			cacheTtlByStatus: {
+				'200': 300,
+			},
+		},
 	});
 	const text = await response.text();
 	const json = JSON.parse(text);
@@ -70,6 +80,11 @@ export async function webStore({ id, field }: StoreParameters) {
 				Accept: 'application/json, text/plain, */*',
 				Referer: `https://chromewebstore.google.com/`,
 				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36',
+			},
+			cf: {
+				cacheTtlByStatus: {
+					'200': 300,
+				},
 			},
 			// UTF-8 encoding issue
 			redirect: 'manual',
