@@ -1,7 +1,8 @@
 import type { Env, StoreParameters } from './typings';
-import { NotFound, BadRequest } from './errors';
+import { array, object, string, number, nullable, boolean } from 'valibot';
+import { NotFound, BadRequest, InternalServerError } from './errors';
 import { getPathsFromUrl } from './utils';
-import { ExtensionIdSchema, safeParse } from './schemas';
+import { ManifestSchema, ExtensionIdSchema, validate } from './schemas';
 
 export async function whaleStore({ id, field }: StoreParameters) {
 	const response = await fetch(`https://store.whale.naver.com/ajax/extensions/${id}`, {
@@ -19,15 +20,19 @@ export async function whaleStore({ id, field }: StoreParameters) {
 	};
 	const json = JSON.parse(stripPreamble(text));
 
-	const version = json?.manifest?.version_name ?? json?.manifest?.version ?? json?.version;
-
-	if (!version) throw new NotFound();
-
 	switch (field) {
 		case 'raw':
 			return json;
-		case 'version':
+		case 'version': {
+			const version = json.manifest?.version_name ?? json.manifest?.version ?? json.version;
+			if (!version) throw new NotFound();
 			return { version };
+		}
+		case 'users': {
+			const users = json.installedCount - json.uninstalledCount;
+			if (isNaN(users)) throw new InternalServerError();
+			return { users };
+		}
 		default:
 			throw new NotFound();
 	}
@@ -49,6 +54,8 @@ export async function edgeAddons({ id, field }: StoreParameters) {
 			return json;
 		case 'version':
 			return { version: json.version };
+		case 'users':
+			return { users: json.activeInstallCount };
 		default:
 			throw new NotFound();
 	}
@@ -126,10 +133,8 @@ export default {
 
 		const [rawId, field] = paths;
 
-		const idResult = safeParse(ExtensionIdSchema, rawId);
-		if (idResult.success) {
-			return await handleStore(target, { id: idResult.output, field });
-		}
-		throw new BadRequest(idResult.issues[0].message);
+		const id = validate(ExtensionIdSchema, rawId);
+
+		return await handleStore(target, { id, field });
 	},
 };

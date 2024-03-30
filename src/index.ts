@@ -2,7 +2,7 @@ import type { Env } from './typings';
 import { HttpError, NotFound } from './errors';
 import stores from './stores';
 import summary from './summary';
-import { getPathsFromUrl, formatShieldsIo } from './utils';
+import { getPathsFromUrl, formatShieldsIo, errorToHttpResponse } from './utils';
 
 const handlers = {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -53,12 +53,7 @@ export default {
 			}
 			return response;
 		} catch (e) {
-			const error = e as Error;
-
-			if (error instanceof HttpError) {
-				return Response.json({ message: error.message }, { status: error.status });
-			}
-			return Response.json({ message: error.message }, { status: 500 });
+			return errorToHttpResponse(e);
 		}
 	},
 };

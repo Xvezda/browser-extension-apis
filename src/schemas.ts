@@ -1,4 +1,7 @@
-import { string, regex, Input } from 'valibot';
+import { string, regex, object, Input, ValiError } from 'valibot';
+
+// @ts-ignore
+export const ManifestSchema = object<chrome.runtime.Manifest>({});
 
 // @example
 // mhekkeeijkeeadploidppfdfhafnhoho
@@ -10,4 +13,15 @@ export const ExtensionIdSchema = string([
 
 export type ExtensionId = Input<typeof ExtensionIdSchema>;
 
-export { safeParse } from 'valibot';
+export const isValidateError = (error: any): error is ValiError => {
+	return error instanceof ValiError;
+}
+
+export const getErrorMessage = (error: any) => {
+	if (isValidateError(error)) {
+		return error.message;
+	}
+	return error.message || 'Internal Server Error';
+}
+
+export { parse as validate } from 'valibot';

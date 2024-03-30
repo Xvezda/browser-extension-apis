@@ -19,3 +19,9 @@ export class BadRequest extends HttpError {
 		super(message || 'Bad Request', 400);
 	}
 }
+
+export class InternalServerError extends HttpError {
+	constructor(message?: string) {
+		super(message || 'Internal Server Error', 500);
+	}
+}
