@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --env=development",
     "start": "wrangler dev",
     "test": "vitest"
   },
