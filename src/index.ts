@@ -1,8 +1,8 @@
 import type { Env } from './typings';
-import { HttpError, NotFound } from './errors';
+import { NotFound } from './errors';
 import stores from './stores';
 import summary from './summary';
-import { getPathsFromUrl, formatShieldsIo, errorToHttpResponse } from './utils';
+import { getPathsFromUrl, errorToHttpResponse } from './utils';
 
 const handlers = {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -25,6 +25,7 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		try {
 			const cacheUrl = new URL(request.url);
+			cacheUrl.searchParams.sort();
 
 			const cacheKey = new Request(cacheUrl.toString(), request);
 			const cache = caches.default;
@@ -39,12 +40,8 @@ export default {
 
 				const result = await handlers.fetch(request, env, ctx);
 
-				const params = new URL(request.url).searchParams;
-				if (params.has('format') && params.get('format') === 'shields-io') {
-					response = Response.json(formatShieldsIo(result));
-				} else {
-					response = Response.json(result);
-				}
+				response = Response.json(result);
+
 				response.headers.set('Cache-Control', 'public, max-age=300');
 
 				ctx.waitUntil(cache.put(cacheKey, response.clone()));

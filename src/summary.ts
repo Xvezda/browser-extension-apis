@@ -1,6 +1,6 @@
 import type { Env } from './typings';
 import { split } from 'string-ts';
-import { array, string, special, safeParse } from 'valibot';
+import { array, special, safeParse } from 'valibot';
 import { type ExtensionId, ExtensionIdSchema, validate } from './schemas';
 import { NotFound, BadRequest } from './errors';
 import { getPathsFromUrl } from './utils';
@@ -35,6 +35,13 @@ export default {
 
 		const users = results.reduce((acc, result) => acc + result.users, 0);
 
+		if (params.get('format') === 'shields-io') {
+			return {
+				schemaVersion: 1,
+				label: 'users',
+				message: `${users}`,
+			};
+		}
 		return { users };
 	},
 };

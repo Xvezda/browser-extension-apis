@@ -1,8 +1,7 @@
 import type { Env, StoreParameters } from './typings';
-import { array, object, string, number, nullable, boolean } from 'valibot';
-import { NotFound, BadRequest, InternalServerError } from './errors';
+import { NotFound, InternalServerError } from './errors';
 import { getPathsFromUrl } from './utils';
-import { ManifestSchema, ExtensionIdSchema, validate } from './schemas';
+import { ExtensionIdSchema, validate } from './schemas';
 
 export async function whaleStore({ id, field }: StoreParameters) {
 	const response = await fetch(`https://store.whale.naver.com/ajax/extensions/${id}`, {
@@ -135,6 +134,26 @@ export default {
 
 		const id = validate(ExtensionIdSchema, rawId);
 
-		return await handleStore(target, { id, field });
+		const result = await handleStore(target, { id, field });
+
+		const params = new URL(request.url).searchParams;
+
+		if (params.has('format') && params.get('format') === 'shields-io') {
+			if (field === 'version') {
+				return {
+					schemaVersion: 1,
+					label: 'version',
+					message: `v${result.version}`,
+				};
+			}
+			if (field === 'users') {
+				return {
+					schemaVersion: 1,
+					label: 'users',
+					message: `${result.users}`,
+				};
+			}
+		}
+		return result;
 	},
 };
