@@ -33,7 +33,12 @@ export default {
 			return handleStore(store, { id, field });
 		}));
 
-		const users = results.reduce((acc, result) => acc + result.users, 0);
+		let users = results.reduce((acc, result) => acc + result.users, 0);
+		if (params.has('number')) {
+			try {
+				users = new Intl.NumberFormat(params.get('number')!).format(users);
+			} catch (e) {}
+		}
 
 		if (params.get('format') === 'shields-io') {
 			return {
