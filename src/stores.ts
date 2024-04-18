@@ -1,7 +1,7 @@
-import type { Env, StoreParameters } from './typings';
-import { NotFound, InternalServerError } from './errors';
-import { getPathsFromUrl } from './utils';
-import { ExtensionIdSchema, validate } from './schemas';
+import { HTTPException } from 'hono/http-exception';
+import type { StoreParameters } from './typings';
+
+import { Hono } from 'hono';
 
 export async function whaleStore({ id, field }: StoreParameters) {
 	const response = await fetch(`https://store.whale.naver.com/ajax/extensions/${id}`, {
@@ -29,16 +29,16 @@ export async function whaleStore({ id, field }: StoreParameters) {
 			return json;
 		case 'version': {
 			const version = json.manifest?.version_name ?? json.manifest?.version ?? json.version;
-			if (!version) throw new NotFound();
+			if (!version) throw new HTTPException(404);
 			return { version };
 		}
 		case 'users': {
 			const users = json.installedCount - json.uninstalledCount;
-			if (isNaN(users)) throw new InternalServerError();
+			if (isNaN(users)) throw new HTTPException(500);
 			return { users };
 		}
 		default:
-			throw new NotFound();
+			throw new HTTPException(404);
 	}
 }
 
@@ -66,7 +66,7 @@ export async function edgeAddons({ id, field }: StoreParameters) {
 		case 'users':
 			return { users: json.activeInstallCount };
 		default:
-			throw new NotFound();
+			throw new HTTPException(404);
 	}
 }
 
@@ -102,7 +102,7 @@ export async function webStore({ id, field }: StoreParameters) {
 		case 'version':
 			const found = html.match(/<div class="pDlpAd">([^<]+)<\/div>/)?.[1] ?? '';
 			if (!found) {
-				throw new NotFound();
+				throw new HTTPException(404);
 			}
 			const json = { version: found.trim() };
 
@@ -110,16 +110,16 @@ export async function webStore({ id, field }: StoreParameters) {
 		case 'users': {
 			const found = html.match(/<div class="F9iKBc">.*?(\d+) users.*?<\/div>/)?.[1] ?? '';
 			if (!found) {
-				throw new NotFound();
+				throw new HTTPException(404);
 			}
 			let result = parseInt(found.replace(/,/g, ''));
 			if (isNaN(result)) {
-				throw new NotFound();
+				throw new HTTPException(404);
 			}
 			return { users: result };
 		}
 		default:
-			throw new NotFound();
+			throw new HTTPException(404);
 	}
 }
 
@@ -136,39 +136,19 @@ export async function handleStore(target: 'whale-store' | 'edge-addons' | 'web-s
 			result = await webStore({ id, field });
 			break;
 		default:
-			throw new NotFound();
+			throw new HTTPException(404);
 	}
 	return result;
 }
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-		const [_version, _api, target, ...paths] = getPathsFromUrl(request.url);
+const app = new Hono();
 
-		const [rawId, field] = paths;
+app.get('/:store/:id/:field', async (c) => {
+	const { store, id, field } = c.req.param();
 
-		const id = validate(ExtensionIdSchema, rawId);
+	const result = await handleStore(store, { id, field });
 
-		const result = await handleStore(target, { id, field });
+	return c.json(result);
+});
 
-		const params = new URL(request.url).searchParams;
-
-		if (params.has('format') && params.get('format') === 'shields-io') {
-			if (field === 'version') {
-				return {
-					schemaVersion: 1,
-					label: 'version',
-					message: `v${result.version}`,
-				};
-			}
-			if (field === 'users') {
-				return {
-					schemaVersion: 1,
-					label: 'users',
-					message: `${result.users}`,
-				};
-			}
-		}
-		return result;
-	},
-};
+export default app;
