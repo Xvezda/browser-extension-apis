@@ -1,10 +1,9 @@
-import type { Env } from './typings';
 import { split } from 'string-ts';
 import { array, special, safeParse } from 'valibot';
 import { type ExtensionId, ExtensionIdSchema, validate } from './schemas';
-import { NotFound, BadRequest } from './errors';
-import { getPathsFromUrl } from './utils';
 import { handleStore } from './stores';
+
+import { Hono } from 'hono';
 
 const TargetSchema = special<`${ExtensionId}:${string}`>((value) => {
 	if (typeof value !== 'string') return false;
@@ -16,37 +15,26 @@ const TargetSchema = special<`${ExtensionId}:${string}`>((value) => {
 
 const TargetsSchema = array(TargetSchema);
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-		const [_version, _api, field] = getPathsFromUrl(request.url);
+const app = new Hono();
 
-		if (field !== 'users') throw new NotFound();
+app.get('/:field', async (c) => {
+	const targets = validate(TargetsSchema, split(c.req.query('targets')!, ','));
 
-		const params = new URL(request.url).searchParams;
+	const field = c.req.param('field');
 
-		if (!params.has('targets')) throw new BadRequest('Missing targets parameter');
+	const results = await Promise.all(targets.map(async (target) => {
+		const [store, id] = split(target, ':');
+		return handleStore(store, { id, field });
+	}));
 
-		const targets = validate(TargetsSchema, split(params.get('targets')!, ','));
+	let users = results.reduce((acc, result) => acc + result.users, 0);
+	if (c.req.query('number')) {
+		try {
+			users = new Intl.NumberFormat(c.req.query('number')!).format(users);
+		} catch (e) {}
+	}
 
-		const results = await Promise.all(targets.map(async (target) => {
-			const [store, id] = split(target, ':');
-			return handleStore(store, { id, field });
-		}));
+	return c.json({ users });
+});
 
-		let users = results.reduce((acc, result) => acc + result.users, 0);
-		if (params.has('number')) {
-			try {
-				users = new Intl.NumberFormat(params.get('number')!).format(users);
-			} catch (e) {}
-		}
-
-		if (params.get('format') === 'shields-io') {
-			return {
-				schemaVersion: 1,
-				label: 'users',
-				message: `${users}`,
-			};
-		}
-		return { users };
-	},
-};
+export default app;
