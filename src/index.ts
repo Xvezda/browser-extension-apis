@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cache } from 'hono/cache';
+import { cors } from 'hono/cors';
 import storesRoute from './stores';
 import summaryRoute from './summary';
 import { HTTPException } from 'hono/http-exception';
@@ -13,6 +14,8 @@ app.get('*',
 		cacheControl: 'max-age=300',
 	})
 );
+
+app.use('*', cors());
 
 app.use(async (c, next) => {
 	await next();
