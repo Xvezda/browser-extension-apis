@@ -108,7 +108,7 @@ export async function webStore({ id, field }: StoreParameters) {
 
 			return { version: json.version };
 		case 'users': {
-			const found = html.match(/<div class="F9iKBc">.*?(\d+) users.*?<\/div>/)?.[1] ?? '';
+			const found = html.match(/<div class="F9iKBc">.*?([\d,]+) users.*?<\/div>/)?.[1] ?? '';
 			if (!found) {
 				throw new HTTPException(404);
 			}
