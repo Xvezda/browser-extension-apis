@@ -30,7 +30,14 @@ app.get('/:field', async (c) => {
 	let users = results.reduce((acc, result) => acc + result.users, 0);
 	if (c.req.query('number')) {
 		try {
-			users = new Intl.NumberFormat(c.req.query('number')!).format(users);
+			const formatter = new Intl.NumberFormat(
+				c.req.query('number')!,
+				Object.assign(
+					{} as Intl.NumberFormatOptions,
+					c.req.query('numberNotation') && { notation: c.req.query('numberNotation') },
+				),
+			);
+			users = formatter.format(users);
 		} catch (e) {}
 	}
 
