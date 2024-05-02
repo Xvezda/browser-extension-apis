@@ -20,6 +20,10 @@ const app = new Hono();
 app.get('/:field', async (c) => {
 	const targets = validate(TargetsSchema, split(c.req.query('targets')!, ','));
 
+	if (targets.length > 10) {
+		return c.json({ error: 'Too many targets' }, 400);
+	}
+
 	const field = c.req.param('field');
 
 	const results = await Promise.all(targets.map(async (target) => {
