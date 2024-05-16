@@ -100,7 +100,7 @@ export async function webStore({ id, field }: StoreParameters) {
 
 	switch (field) {
 		case 'version':
-			const found = html.match(/<div class="pDlpAd">([^<]+)<\/div>/)?.[1] ?? '';
+			const found = html.match(/<div class="N3EXSc">([^<]+)<\/div>/)?.[1] ?? '';
 			if (!found) {
 				throw new HTTPException(404);
 			}
